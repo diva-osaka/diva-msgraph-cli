@@ -80,3 +80,19 @@ export function getAuthConfig(): AuthConfig {
     clientSecret: getConfigValue('clientSecret'),
   };
 }
+
+const DEFAULT_SCOPES = ['User.Read', 'Mail.Read', 'Calendars.ReadWrite'];
+
+export function getScopes(): string[] {
+  const envScopes = process.env.GRAPH_SCOPES;
+  if (envScopes) {
+    return envScopes.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+  }
+
+  const config = loadConfig();
+  if (config.scopes) {
+    return config.scopes.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+  }
+
+  return DEFAULT_SCOPES;
+}

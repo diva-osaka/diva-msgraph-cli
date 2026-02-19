@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import Table from 'cli-table3';
 import { CalendarService } from '../services/calendar';
-import { CalendarEvent } from '../types';
+import { CalendarEvent, CalendarInfo } from '../types';
 import { handleError } from '../utils/errors';
 
 async function loadChalk() {
@@ -84,6 +84,7 @@ export function createCalendarCommand(): Command {
     .option('-n, --top <number>', 'Number of events to show')
     .option('--format <format>', 'Output format (table/json)', 'table')
     .option('--timezone <tz>', 'Timezone')
+    .option('--calendar <name>', 'Calendar name (partial match)')
     .action(async (options) => {
       const verbose = calendar.parent?.opts().verbose;
       const chalk = await loadChalk();
@@ -97,7 +98,12 @@ export function createCalendarCommand(): Command {
         const top = options.top ? parseInt(options.top, 10) : undefined;
         const timeZone = options.timezone || undefined;
 
-        const events = await service.listEvents(startDateTime, endDateTime, top, timeZone);
+        let calendarId: string | undefined;
+        if (options.calendar) {
+          calendarId = await service.resolveCalendarId(options.calendar);
+        }
+
+        const events = await service.listEvents(startDateTime, endDateTime, top, timeZone, calendarId);
         spinner.stop();
 
         if (events.length === 0) {
@@ -182,6 +188,7 @@ export function createCalendarCommand(): Command {
     .option('--online', 'Create as online meeting')
     .option('--all-day', 'Create as all-day event')
     .option('--timezone <tz>', 'Timezone')
+    .option('--calendar <name>', 'Calendar name (partial match)')
     .action(async (options) => {
       const verbose = calendar.parent?.opts().verbose;
       const chalk = await loadChalk();
@@ -213,7 +220,12 @@ export function createCalendarCommand(): Command {
           timeZone: options.timezone,
         };
 
-        const event = await service.createEvent(createOptions, options.allDay || false);
+        let calendarId: string | undefined;
+        if (options.calendar) {
+          calendarId = await service.resolveCalendarId(options.calendar);
+        }
+
+        const event = await service.createEvent(createOptions, options.allDay || false, calendarId);
         spinner.succeed(chalk.green(`Event created: ${event.subject}`));
 
         if (verbose) {
@@ -264,6 +276,54 @@ export function createCalendarCommand(): Command {
         }
       } catch (error) {
         spinner.fail('Failed to update calendar event.');
+        handleError(error, verbose);
+        process.exitCode = 1;
+      }
+    });
+
+  calendar
+    .command('calendars')
+    .description('List available calendars')
+    .option('--format <format>', 'Output format (table/json)', 'table')
+    .action(async (options) => {
+      const verbose = calendar.parent?.opts().verbose;
+      const chalk = await loadChalk();
+      const ora = await loadOra();
+      const spinner = ora('Fetching calendars...').start();
+
+      try {
+        const service = new CalendarService();
+        const calendars = await service.listCalendars();
+        spinner.stop();
+
+        if (calendars.length === 0) {
+          console.log(chalk.yellow('No calendars found.'));
+          return;
+        }
+
+        if (options.format === 'json') {
+          console.log(JSON.stringify(calendars, null, 2));
+        } else {
+          const table = new Table({
+            head: ['Name', 'Owner', 'Default', 'Can Edit'],
+            style: { head: ['cyan'] },
+            wordWrap: true,
+          });
+
+          for (const cal of calendars) {
+            table.push([
+              cal.name || '',
+              cal.owner?.name || cal.owner?.address || '',
+              cal.isDefaultCalendar ? 'Yes' : '',
+              cal.canEdit ? 'Yes' : 'No',
+            ]);
+          }
+
+          console.log(table.toString());
+          console.log(chalk.gray(`${calendars.length} calendar(s) found.`));
+        }
+      } catch (error) {
+        spinner.fail('Failed to fetch calendars.');
         handleError(error, verbose);
         process.exitCode = 1;
       }

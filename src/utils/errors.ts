@@ -38,6 +38,30 @@ export function handleError(error: unknown, verbose?: boolean): void {
   }
 
   if (error instanceof Error) {
+    // Check for Graph API errors (statusCode, code, body)
+    const graphError = error as Error & { statusCode?: number; code?: string; body?: unknown };
+    if (graphError.statusCode || graphError.code) {
+      const code = graphError.code || 'UnknownGraphError';
+      const friendlyMessage = ERROR_MESSAGES[code] || error.message;
+      console.error(`Error: ${friendlyMessage}`);
+      if (verbose) {
+        if (graphError.code) console.error(`  Code: ${graphError.code}`);
+        if (graphError.statusCode) console.error(`  Status: ${graphError.statusCode}`);
+        if (graphError.body) {
+          try {
+            const body = typeof graphError.body === 'string'
+              ? JSON.parse(graphError.body)
+              : graphError.body;
+            console.error(`  Details: ${JSON.stringify(body, null, 2)}`);
+          } catch {
+            console.error(`  Body: ${String(graphError.body)}`);
+          }
+        }
+        console.error(`  Stack: ${error.stack}`);
+      }
+      return;
+    }
+
     // Check for MSAL errors
     const msalError = error as Error & { errorCode?: string };
     if (msalError.errorCode) {

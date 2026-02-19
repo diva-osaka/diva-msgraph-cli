@@ -24,9 +24,9 @@ export function createMailCommand(): Command {
     .action(async (options) => {
       const verbose = mail.parent?.opts().verbose;
       const ora = await loadOra();
+      const spinner = ora('Fetching messages...').start();
 
       try {
-        const spinner = ora('Fetching messages...').start();
         const mailService = new MailService();
         const messages = await mailService.listMessages({
           top: parseInt(options.top, 10),
@@ -43,6 +43,7 @@ export function createMailCommand(): Command {
         const output = await formatMailList(messages, options.format as FormatType);
         console.log(output);
       } catch (error) {
+        spinner.fail('Failed to fetch messages.');
         handleError(error, verbose);
         process.exitCode = 1;
       }
@@ -55,9 +56,9 @@ export function createMailCommand(): Command {
     .action(async (messageId: string, options) => {
       const verbose = mail.parent?.opts().verbose;
       const ora = await loadOra();
+      const spinner = ora('Fetching message...').start();
 
       try {
-        const spinner = ora('Fetching message...').start();
         const mailService = new MailService();
         const message = await mailService.readMessage(messageId);
         spinner.stop();
@@ -65,6 +66,7 @@ export function createMailCommand(): Command {
         const output = await formatMailDetail(message, options.format as FormatType);
         console.log(output);
       } catch (error) {
+        spinner.fail('Failed to fetch message.');
         handleError(error, verbose);
         process.exitCode = 1;
       }
@@ -81,16 +83,17 @@ export function createMailCommand(): Command {
       const verbose = mail.parent?.opts().verbose;
       const chalk = await loadChalk();
       const ora = await loadOra();
+      const spinner = ora('Sending message...').start();
 
       try {
         const toAddresses = options.to.split(',').map((a: string) => a.trim());
         const contentType = options.html ? 'html' : 'text';
 
-        const spinner = ora('Sending message...').start();
         const mailService = new MailService();
         await mailService.sendMessage(toAddresses, options.subject, options.body, contentType);
         spinner.succeed(chalk.green('Message sent successfully.'));
       } catch (error) {
+        spinner.fail('Failed to send message.');
         handleError(error, verbose);
         process.exitCode = 1;
       }

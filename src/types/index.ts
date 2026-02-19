@@ -49,6 +49,14 @@ export interface MailListOptions {
   folder?: string;
 }
 
+export interface CalendarInfo {
+  id: string;
+  name: string;
+  owner?: { name: string; address: string };
+  isDefaultCalendar?: boolean;
+  canEdit?: boolean;
+}
+
 export interface CalendarEvent {
   id: string;
   subject: string;

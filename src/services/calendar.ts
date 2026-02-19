@@ -1,5 +1,5 @@
 import { getGraphClient } from './graph-client';
-import { CalendarEvent, CalendarCreateOptions, CalendarEditOptions } from '../types';
+import { CalendarEvent, CalendarInfo, CalendarCreateOptions, CalendarEditOptions } from '../types';
 import { GraphCliError } from '../utils/errors';
 
 function getLocalTimeZone(): string {
@@ -7,17 +7,53 @@ function getLocalTimeZone(): string {
 }
 
 export class CalendarService {
+  async listCalendars(): Promise<CalendarInfo[]> {
+    const client = await getGraphClient();
+    const response = await client
+      .api('/me/calendars')
+      .select('id,name,owner,isDefaultCalendar,canEdit')
+      .get();
+    return response.value as CalendarInfo[];
+  }
+
+  async resolveCalendarId(name: string): Promise<string> {
+    const calendars = await this.listCalendars();
+    const matches = calendars.filter(
+      (c) => c.name.toLowerCase().includes(name.toLowerCase())
+    );
+
+    if (matches.length === 0) {
+      throw new GraphCliError(
+        `Calendar not found: "${name}"`,
+        'CalendarNotFound'
+      );
+    }
+    if (matches.length > 1) {
+      const names = matches.map((c) => c.name).join(', ');
+      throw new GraphCliError(
+        `Multiple calendars matched "${name}": ${names}. Please specify a more specific name.`,
+        'AmbiguousCalendar'
+      );
+    }
+    return matches[0].id;
+  }
+
   async listEvents(
     startDateTime: string,
     endDateTime: string,
     top?: number,
-    timeZone?: string
+    timeZone?: string,
+    calendarId?: string
   ): Promise<CalendarEvent[]> {
     const client = await getGraphClient();
     const tz = timeZone || getLocalTimeZone();
 
+    const apiPath = calendarId
+      ? `/me/calendars/${calendarId}/calendarView`
+      : '/me/calendarView';
+
     let request = client
-      .api('/me/calendarView')
+      .api(apiPath)
       .query({
         startDateTime,
         endDateTime,
@@ -51,7 +87,8 @@ export class CalendarService {
 
   async createEvent(
     options: CalendarCreateOptions,
-    isAllDay?: boolean
+    isAllDay?: boolean,
+    calendarId?: string
   ): Promise<CalendarEvent> {
     const client = await getGraphClient();
     const tz = options.timeZone || getLocalTimeZone();
@@ -101,7 +138,11 @@ export class CalendarService {
       body.isAllDay = true;
     }
 
-    const event = await client.api('/me/events').post(body);
+    const apiPath = calendarId
+      ? `/me/calendars/${calendarId}/events`
+      : '/me/events';
+
+    const event = await client.api(apiPath).post(body);
     return event as CalendarEvent;
   }
 

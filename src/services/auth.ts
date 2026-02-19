@@ -4,10 +4,9 @@ import {
   ensureConfigDir,
   getTokenCachePath,
   getAuthConfig,
+  getScopes,
 } from '../utils/config';
 import { GraphCliError } from '../utils/errors';
-
-const SCOPES = ['User.Read', 'Mail.Read', 'Mail.Send', 'Calendars.ReadWrite'];
 
 function createCachePlugin(): msal.ICachePlugin {
   const cachePath = getTokenCachePath();
@@ -92,7 +91,7 @@ export class AuthService {
   async loginWithDeviceCode(): Promise<msal.AuthenticationResult> {
     const app = await this.getPublicApp();
     const request: msal.DeviceCodeRequest = {
-      scopes: SCOPES,
+      scopes: getScopes(),
       deviceCodeCallback: (response) => {
         console.log(response.message);
       },
@@ -138,7 +137,7 @@ export class AuthService {
 
     const request: msal.SilentFlowRequest = {
       account: accounts[0],
-      scopes: SCOPES,
+      scopes: getScopes(),
     };
 
     try {

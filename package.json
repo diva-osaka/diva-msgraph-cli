@@ -16,6 +16,9 @@
   },
   "keywords": [],
   "author": "",
+  "files": [
+    "dist/"
+  ],
   "license": "ISC",
   "dependencies": {
     "@azure/msal-node": "^5.0.4",
