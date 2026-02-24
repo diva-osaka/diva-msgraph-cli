@@ -8,7 +8,7 @@ import { createAuthCommand } from './commands/auth';
 import { createMailCommand } from './commands/mail';
 import { createCalendarCommand } from './commands/calendar';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const packageJsonPath = path.resolve(__dirname, '..', 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
